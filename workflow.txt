@@ -1,0 +1,38 @@
+micropython-freebsd
+
+workflow.txt
+
+Here is a typical workflow for micropython development on freebsd using this tool collection.
+
+Test the new board with whatever was shipped on it (Lua maybe?)
+
+Do a 'git pull' on this repo.
+
+Download the latest micropython firmware .bin file from https://micropython.org/download#esp8266
+
+If esptool has been updated recently, pip install --user esptool --upgrade
+
+Run the flash script to install the firmware bin file.
+
+If ampy has been updated recently, pip install --user adafruit-ampy --upgrade
+
+Use ./ampy to upload something similar to boot-sample.py into /boot.py
+
+Do some testing using the REPL via USB serial using minicom esp8266 and/or ./ampy run
+
+Possibly do some development with a loop of editing somefile.py then ./ampy --no-output run somefile.py until it works
+
+Possibly do some deployment of a final version with ./ampy put somefile.py /main.py
+
+Use ampy to upload something similar to boot-sample-wifi.py into /boot.py customized for your wifi
+
+If the WebREPL hosted pages have updated recently, they're at https://github.com/micropython/webrepl download a zip and put them on a web server somewhere.  Apache works fine on FreeBSD although set up is far beyond the scope of this document.
+
+Configure the WebREPL (set a password) by connecting and run "import webrepl_setup", enable it, set a password, maybe reboot.
+
+Probably use ampy to upload something similar to boot-sample-wifi-webrepl.py
+
+The webrepl is accessed at the webserver its installed upon, then on that page you have it access the micropython device webservices URL.
+
+The webrepl is somewhat more convenient sometimes especially for remote upgrades but can only access files in the root directory, so you end up having to store everything in the root.
+
