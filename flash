@@ -1,0 +1,231 @@
+#!/usr/bin/env bash
+# micropython-freebsd/flash
+
+# This is a helper script to flash ESP8266 boards with micropython firmware on FreeBSD
+# Copyright (C) 2017 Vince Mulhollon
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see http://www.gnu.org/licenses/
+
+# The only mandatory FreeBSD prerequisite is having installed a bash shell, as root run:
+# pkg install bash
+# There are numerous other requirements for successful flash burning, the script will 
+# detect and prompt you when run.
+
+# This is verified as working on the following boards:
+#
+# Adafruit Feather Huzzah esp8266 a 80 MHz 4 meg board with automatic flash circuitry
+#
+# HiLetGo New Version NodeMCU LUA Wifi Internet ESP8266 Development with manual flash
+# Holding the USB, hold down reset (left) hold down flash (right) release left, release right, flash 
+# 
+# Please submit pull requests for other boards
+
+# As user pip install --user esptool
+
+export BIN=`ls esp8266-*.bin | sort -r | head -1`
+
+# Start config options
+
+# This is the USB virtual RS232 port the esp8266 appears as.
+# This could change if you had multiple boards or something additional USB peripheral
+export PORT=/dev/ttyU0
+
+# 115200 works for me every time and is fast enough.
+# I've heard rumors of higher speed being unreliable
+# I've heard 9600 helps with older, slower flash near EOL.
+export BAUD=115200
+
+# If you need to override the automatic firmware discovery, uncomment and edit
+# export BIN='esp8266-20170108-v1.8.7.bin'
+
+# This default probably does not have to be changed
+export ESPTOOL=~/.local/bin/esptool.py
+
+# End config options
+
+echo micropython-freebsd/flash Copyright 2017 Vince Mulhollon
+echo This helper script flashes ESP8266 development boards with
+echo micropython firmware while attempting to automatically
+echo troubleshoot failure modes.  Its intended to run on FreeBSD.
+echo This program comes with ABSOLUTELY NO WARRANTY for details see
+echo the LICENSE file, containing a copy of the GNU GPL version 3.
+echo This is free software, and you are welcome to redistribute it
+echo under certain conditions.
+echo
+
+echo Config
+echo Port $PORT
+echo Baud Rate $BAUD
+echo MicroPython firmware BIN file $BIN
+echo esptool filename and path is $ESPTOOL
+echo
+
+# Exit if OS is not FreeBSD
+if [[ "$OSTYPE" != "freebsd"* ]]; then
+  echo This script was originally written to run on FreeBSD
+  echo Your OSTYPE parameter is $OSTYPE which the script interprets as 
+  echo not being FreeBSD.
+  echo So either run this on FreeBSD or fix the script to recognize 
+  echo $OSTYPE as being a FreeBSD version
+  echo
+  exit 1
+fi
+
+# Exit if user is root
+if [[ `whoami` == 'root' ]]; then
+  echo This script is not intended to be run as root
+  echo Log in as some other user
+  echo
+  exit 1
+fi
+
+# Exit if the USB port does not exist
+if [ ! -e $PORT ]; then
+  echo The USB port $PORT does not appear to exist.
+  echo Often this means the PORT configuration is wrong.
+  echo The default /dev/ttyU0 is usually correct if there are no other 
+  echo devices plugged in.
+  echo Sometimes this means a bad or loose USB cable, or a bad device
+  echo you might want to check the last couple lines of dmesg when you 
+  echo plug in a device.  Something similar to this should be in the 
+  echo dmesg log.
+  echo "  ugen0.3: <Silicon Labs> at usbus0"
+  echo "  uslcom0: <CP2102 USB to UART Bridge Controller> on usbus0"
+  echo Also do a quick "ls /dev" to see whats there.  Perhaps you will
+  echo see it on /dev/ttyU1 or similar.
+  echo
+  exit 1
+fi
+
+# Exit if no write access to the USB port
+if [ ! -w $PORT ]; then
+  echo The USB port $PORT exists, which is good, but is not writable
+  echo The "correct" way for you to gain write access to the USB port
+  echo is beyond the scope of this script.  There are many ways,
+  echo contact a FreeBSD sysadmin or do some google searches.
+  echo However, one way for everyone logged into the machine to access
+  echo the port until its removed and reinserted or the computer is 
+  echo "rebooted is to run the following command as ROOT (not logged in"
+  echo "as yourself):"
+  echo
+  echo chmod 0666 $PORT
+  echo
+  exit 1
+fi
+
+# Exit if no read access to the MicroPython firmware file
+if [ ! -r $BIN ]; then
+  echo The MicroPython firmware file does not exist or does not have 
+  echo read access.
+  echo The script thinks the firmware file name is $BIN
+  echo Perhaps a firmware was simply never downloaded, forgotten.
+  echo Perhaps the automatic search for the most recent file failed awfully
+  echo Perhaps someone hardcoded a manual filename to override the automatic search
+  echo and that has a typo or otherwise failed.
+  echo Sometimes people download or copy a shared file owned by someone else, 
+  echo resulting in a permissions problem.
+  echo The file should be located in this directory and historically they are
+  echo named something like esp8266-20170108-v1.8.7.bin
+  echo Possibly you could download the most recent firmware using:
+  echo lynx https://micropython.org/download#esp8266
+  echo 
+  exit 1
+fi
+
+# Exit if python PIP is not installed
+if [ ! -e /usr/local/bin/pip ]; then
+  echo Python 2.7 PIP does not appear to be installed.
+  echo /usr/local/bin/pip does not exist.
+  echo As root, run
+  echo pkg install py27-pip
+  echo 
+  exit 1
+fi
+
+# Exit if esptool is not installed
+if [ ! -x $ESPTOOL ]; then
+  echo The esptool does not appear to be installed.
+  echo $ESPTOOL cannot be executed
+  echo As user, run
+  echo pip install --user esptool
+  echo
+  exit 1
+fi
+
+# Create minicom config file
+echo "pu port $PORT" > minirc.esp8266
+echo "pu baudrate 115200" >> minirc.esp8266
+echo "pu bits 8" >> minirc.esp8266
+echo "pu parity N" >> minirc.esp8266
+echo "pu stopbits 1" >> minirc.esp8266
+echo "pu rtscts No" >> minirc.esp8266
+echo "pu xonxoff No" >> minirc.esp8266
+echo "pu minit" >> minirc.esp8266
+echo "pu mreset" >> minirc.esp8266
+echo "pu mhangup" >> minirc.esp8266
+
+# Exit if no symlink for minicom
+if [ ! -L ~/.minirc.esp8266 ]; then
+  echo There does not appear to be a symlink for the minicom esp8266 config
+  echo As user, run
+  echo ln -s `pwd`/minirc.esp8266 ~/.minirc.esp8266
+  echo
+  exit 1
+fi
+
+# Exit if no read access to the ESP8266 init data default settings
+if [ ! -r esp_init_data_default.bin ]; then
+  echo The ESP8266 init data default settings files does not exist
+  echo Its name is esp_init_data_default.bin
+  echo It has to be burned into the top 1K of flash memory to properly
+  echo boot the ESP8266 hardware.
+  echo If its damaged it can prevent booting leading to weird lock up
+  echo on reboot, flashing lights, and noise out the serial port.
+  echo Some firmware automatically taskes care of this, others cannot.
+  echo Google for the filename, download the ESP8266 development kit, 
+  echo extract the zip file, copy it here.
+  echo 
+  exit 1
+fi
+
+echo Chip ID
+$ESPTOOL --port $PORT --baud $BAUD chip_id
+echo
+
+echo Flash ID
+$ESPTOOL --port $PORT --baud $BAUD flash_id
+echo
+
+echo Read the MAC Address
+$ESPTOOL --port $PORT --baud $BAUD read_mac
+echo
+
+echo Erase the Flash
+$ESPTOOL --port $PORT --baud $BAUD erase_flash
+echo
+
+echo Write the Flash
+$ESPTOOL --port $PORT --baud $BAUD write_flash --flash_size=detect -fm dio 0x00 $BIN 0x3fc000 esp_init_data_default.bin
+echo
+
+echo Verify the Flash
+$ESPTOOL --port $PORT --baud $BAUD verify_flash --flash_size=detect -fm dio 0 $BIN
+
+echo
+echo To connect to the MicroPython CLI using Minicom, try this command line:
+echo minicom esp8266
+echo Sometimes you have to reset the terminal emulation using control-A t and change VT102/ANSI setting
+echo
+
+exit 0
