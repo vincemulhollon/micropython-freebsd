@@ -52,6 +52,9 @@ export BAUD=115200
 # This default probably does not have to be changed
 export ESPTOOL=~/.local/bin/esptool.py
 
+# This default probably does not have to be changed
+export AMPY=~/.local/bin/ampy
+
 # End config options
 
 echo micropython-freebsd/flash Copyright 2017 Vince Mulhollon
@@ -199,9 +202,40 @@ if [ ! -r esp_init_data_default.bin ]; then
   exit 1
 fi
 
+# Exit if adafruit-ampy is not installed
+if [ ! -x $AMPY ]; then
+  echo The adafruit-ampy tool does not appear to be installed.
+  echo $AMPY cannot be executed
+  echo As user, run
+  echo pip install --user adafruit-ampy
+  echo Note you can upgrade ampy with this line
+  echo pip install --user adafruit-ampy --upgrade
+  echo
+  exit 1
+fi
+
+# Create the ampy convenience script
+echo "#!/usr/bin/env bash" > ampy
+echo "#" >> ampy
+echo "# ampy" >> ampy
+echo "#" >> ampy
+echo "# Note that ampy works much better if debugging is disabled" >> ampy
+echo "# boot.py should contain something like" >> ampy
+echo "#" >> ampy
+echo "# import esp" >> ampy
+echo "# esp.osdebug(None)" >> ampy
+echo "#" >> ampy
+echo >> ampy
+echo "$AMPY --port $PORT --baud $BAUD $*" >> ampy
+echo >> ampy
+echo "exit 0" >> ampy
+chmod a+x ampy
+
 echo Chip ID
 $ESPTOOL --port $PORT --baud $BAUD chip_id
 echo
+
+exit 0
 
 echo Flash ID
 $ESPTOOL --port $PORT --baud $BAUD flash_id
