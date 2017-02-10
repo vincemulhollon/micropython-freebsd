@@ -16,8 +16,12 @@ Typically you would develop code in a loop of using ./ampy --no-output run somef
 minirc.esp8266 is another file generated every time flash runs, if you follow the instructions provided by flash and symlink it correctly, you can access the serial port CLI REPL by simply running "minicom esp8266" and all the connection details are taken care of for you.
 
 Several sample boot.py files are provided for uploading and testing via ampy.
+
 boot-sample.py does nothing other than forcibly disable error logging which can interfere with ampy operation.
+
 boot-sample-wifi.py enables and connects to a wifi access point.
+
 boot-sample-wifi-webrepl.py autostarts the webrepl
+
 The end user would likely copy one to boot.py, edit to customize, and upload via ampy put boot.py /boot.py
 

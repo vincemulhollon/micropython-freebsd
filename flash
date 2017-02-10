@@ -226,7 +226,7 @@ echo "# import esp" >> ampy
 echo "# esp.osdebug(None)" >> ampy
 echo "#" >> ampy
 echo >> ampy
-echo "$AMPY --port $PORT --baud $BAUD $*" >> ampy
+echo "$AMPY --port $PORT --baud $BAUD \$*" >> ampy
 echo >> ampy
 echo "exit 0" >> ampy
 chmod a+x ampy
@@ -234,8 +234,6 @@ chmod a+x ampy
 echo Chip ID
 $ESPTOOL --port $PORT --baud $BAUD chip_id
 echo
-
-exit 0
 
 echo Flash ID
 $ESPTOOL --port $PORT --baud $BAUD flash_id
